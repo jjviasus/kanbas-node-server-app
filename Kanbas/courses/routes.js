@@ -1,44 +1,66 @@
-import Database from "../database/index.js";
+import * as dao from './dao.js';  // Ensure this path correctly points to your DAO file
 
 export default function CourseRoutes(app) {
-    app.get("/api/courses/:id", (req, res) => {
-        const {id} = req.params;
-        const course = Database.courses
-            .find((c) => c._id === id);
-        if (!course) {
-            res.status(404).send("Course not found");
-            return;
+    const getAllCourses = async (req, res) => {
+        try {
+            const courses = await dao.findAllCourses();
+            res.json(courses);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
-        res.send(course);
-    });
+    };
 
-    app.put("/api/courses/:id", (req, res) => {
-        const {id} = req.params;
-        const course = req.body;
-        Database.courses = Database.courses.map((c) =>
-            c._id === id ? {...c, ...course} : c
-        );
-        res.sendStatus(204);
-    });
+    const getCourseById = async (req, res) => {
+        try {
+            const course = await dao.findCourseById(req.params.id);
+            if (!course) {
+                res.status(404).json({ message: "Course not found" });
+                return;
+            }
+            res.json(course);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
 
-    app.delete("/api/courses/:id", (req, res) => {
-        const {id} = req.params;
-        Database.courses = Database.courses
-            .filter((c) => c._id !== id);
-        res.sendStatus(204);
-    });
+    const createCourse = async (req, res) => {
+        try {
+            const newCourse = await dao.createCourse(req.body);
+            res.status(201).json(newCourse);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
 
-    app.post("/api/courses", (req, res) => {
-        const course = {
-            ...req.body,
-            _id: new Date().getTime().toString()
-        };
-        Database.courses.push(course);
-        res.send(course);
-    });
+    const updateCourse = async (req, res) => {
+        try {
+            const updatedResult = await dao.updateCourse(req.params.id, req.body);
+            if (updatedResult.matchedCount === 0) {
+                res.status(404).json({ message: "No course found with that ID" });
+                return;
+            }
+            res.status(204).end();
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
 
-    app.get("/api/courses", (req, res) => {
-        const courses = Database.courses;
-        res.send(courses);
-    });
+    const deleteCourse = async (req, res) => {
+        try {
+            const deleteResult = await dao.deleteCourse(req.params.id);
+            if (deleteResult.deletedCount === 0) {
+                res.status(404).json({ message: "No course found with that ID" });
+                return;
+            }
+            res.status(204).end();
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    };
+
+    app.get("/api/courses", getAllCourses); // works
+    app.get("/api/courses/:id", getCourseById); // works
+    app.post("/api/courses", createCourse); // works (duplicate course names and numbers are not allowed)
+    app.put("/api/courses/:id", updateCourse); // works (updating the course number doesn't work)
+    app.delete("/api/courses/:id", deleteCourse); // works
 }
